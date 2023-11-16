@@ -8,6 +8,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using GraphEmailClient;
+using System.Security;
+using System;
 
 namespace EmailCalendarsClient.MailSender
 {
@@ -43,8 +45,53 @@ namespace EmailCalendarsClient.MailSender
             }
             catch (MsalUiRequiredException)
             {
+                var result = await GetATokenForGraph();
                 return await AcquireTokenInteractive().ConfigureAwait(false);
             }
+        }
+
+        private async Task<IAccount> GetATokenForGraph()
+        {
+            //string authority = "https://login.microsoftonline.com/contoso.com";
+            //string[] scopes = new string[] { "user.read" };
+            IPublicClientApplication app;
+            app = PublicClientApplicationBuilder.Create(ClientId)
+                  .WithAuthority(Authority)
+                  .Build();
+            var accounts = await app.GetAccountsAsync();
+
+            AuthenticationResult result = null;
+            if (accounts.Any())
+            {
+                result = await app.AcquireTokenSilent(Scopes, accounts.FirstOrDefault())
+                                  .ExecuteAsync();
+            }
+            else
+            {
+                try
+                {
+                    var securePassword = new SecureString();
+                    foreach (char c in "######")        // you should fetch the password
+                        securePassword.AppendChar(c);  // keystroke by keystroke
+
+                    result = await app.AcquireTokenByUsernamePassword(Scopes,
+                                                                     "your_mail_address@intel.com",
+                                                                      securePassword)
+                                       .ExecuteAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return null;
+                    // See details below
+                }
+                //catch (MsalException)
+                //{
+                //    // See details below
+                //}
+            }
+            //Console.WriteLine(result.Account.Username);
+            return result.Account;
         }
 
         private async Task<IAccount> AcquireTokenInteractive()
