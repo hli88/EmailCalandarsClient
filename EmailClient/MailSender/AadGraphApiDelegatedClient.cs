@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using GraphEmailClient;
 using System.Security;
 using System;
+using System.Windows.Interop;
+using System.Windows;
 
 namespace EmailCalendarsClient.MailSender
 {
@@ -158,6 +160,42 @@ namespace EmailCalendarsClient.MailSender
                 .SendMail(message, saveToSentItems)
                 .Request()
                 .PostAsync();
+        }
+
+        public async Task GetInboxMessages()
+        {
+            List<Microsoft.Graph.QueryOption> options = new List<Microsoft.Graph.QueryOption>
+            {
+                    new Microsoft.Graph.QueryOption("$count","true")
+            };
+
+            var result = await AcquireTokenSilent();
+
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var graphClient = new GraphServiceClient(_httpClient)
+            {
+                AuthenticationProvider = new DelegateAuthenticationProvider(async (requestMessage) =>
+                {
+                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+                    await Task.FromResult<object>(null);
+                })
+            };
+
+            var subjectText = "PSS DCP DICE Certificate Signing";
+            var messages = await graphClient.Me.MailFolders.Inbox.Messages.Request(options).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
+
+            List<Message> allMessages = new List<Message>();
+            allMessages.AddRange(messages.CurrentPage);
+            while (messages.NextPageRequest != null)
+            {
+                messages = await messages.NextPageRequest.GetAsync();
+                allMessages.AddRange(messages.CurrentPage);
+            }
+
+            MessageBox.Show(string.Format("Got {0} messages with subject 'PSS DCP DICE Certificate Signing'", allMessages.Count));
+
         }
 
     }
