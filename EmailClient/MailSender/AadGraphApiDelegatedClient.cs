@@ -226,6 +226,35 @@ namespace EmailCalendarsClient.MailSender
 
         }
 
+
+        static async Task<MailFolder> GetOrCreateMailFolder(GraphServiceClient graphClient, string userEmail, string folderName)
+        {
+            var folders = await graphClient.Users[Username].MailFolders.Request().GetAsync();
+            var folder = folders.FirstOrDefault(f => f.DisplayName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
+
+            if (folder == null)
+            {
+                var newFolder = new MailFolder
+                {
+                    DisplayName = folderName
+                };
+
+                return await graphClient.Users[Username].MailFolders.Request().AddAsync(newFolder);
+            }
+            else
+            {
+                return folder;
+            }
+        }
+
+        static async Task MoveMessagesToFolder(GraphServiceClient graphClient, IEnumerable<Message> messages, string targetFolderId)
+        {
+            foreach (var message in messages)
+            {
+                await graphClient.Users[Username].MailFolders[targetFolderId].Messages[message.Id].Move(targetFolderId).Request().PostAsync();
+            }
+        }
+
         public async Task GetInboxMessagesWithSecret()
         {
             var scopes = new[] { "https://graph.microsoft.com/.default" };
@@ -258,7 +287,12 @@ namespace EmailCalendarsClient.MailSender
                 allMessages.AddRange(messages.CurrentPage);
             }
 
-            MessageBox.Show(string.Format("Got {0} messages with subject 'PSS DCP DICE Certificate Signing'", allMessages.Count));
+            var targetFolderName = "Test_Processed";
+            var targetFolder = await GetOrCreateMailFolder(graphClient, Username, targetFolderName);
+
+            await MoveMessagesToFolder(graphClient, allMessages, targetFolder.Id);
+
+            MessageBox.Show(string.Format("Got {0} messages with subject 'PSS DCP DICE Certificate Signing' and moved them to folder '{1}'", allMessages.Count, targetFolderName));
         }
     }
 }
