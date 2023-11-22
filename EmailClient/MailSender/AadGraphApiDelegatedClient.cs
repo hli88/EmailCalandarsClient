@@ -166,6 +166,30 @@ namespace EmailCalendarsClient.MailSender
                 .PostAsync();
         }
 
+        public async Task SendEmailWithSecretAsync(Message message)
+        {
+            var scopes = new[] { "https://graph.microsoft.com/.default" };
+
+            // using Azure.Identity;
+            var options = new ClientSecretCredentialOptions
+            {
+                AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+            };
+
+            // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
+            var clientSecretCredential = new ClientSecretCredential(
+                Tenant, ClientId, ClientSecret, options);
+
+            var graphClient = new GraphServiceClient(clientSecretCredential, scopes);
+
+            await graphClient.Users[Username]
+                .SendMail(message, true)
+                .Request()
+                .PostAsync();
+
+            MessageBox.Show("Message sent successfully!", "Message", MessageBoxButton.OK);
+        }
+
         public async Task GetInboxMessages()
         {
             List<Microsoft.Graph.QueryOption> options = new List<Microsoft.Graph.QueryOption>

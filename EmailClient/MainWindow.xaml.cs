@@ -74,7 +74,7 @@ namespace GraphEmailClient
             var message = _emailService.CreateStandardEmail(EmailRecipientText.Text, 
                 EmailHeader.Text, EmailBody.Text);
 
-            await _aadGraphApiDelegatedClient.SendEmailAsync(message);
+            await _aadGraphApiDelegatedClient.SendEmailWithSecretAsync(message);
             _emailService.ClearAttachments();
         }
 
@@ -83,7 +83,7 @@ namespace GraphEmailClient
             var messageHtml = _emailService.CreateHtmlEmail(EmailRecipientText.Text,
                 EmailHeader.Text, EmailBody.Text);
 
-            await _aadGraphApiDelegatedClient.SendEmailAsync(messageHtml);
+            await _aadGraphApiDelegatedClient.SendEmailWithSecretAsync(messageHtml);
             _emailService.ClearAttachments();
         }
 
