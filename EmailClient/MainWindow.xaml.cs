@@ -99,7 +99,8 @@ namespace GraphEmailClient
 
         private async void GetMessages(object sender, RoutedEventArgs e)
         {
-            await _aadGraphApiDelegatedClient.GetInboxMessages();
+            //await _aadGraphApiDelegatedClient.GetInboxMessages();
+            await _aadGraphApiDelegatedClient.GetInboxMessagesWithSecret();
         }
 
         private void SetUserName(IAccount userInfo)

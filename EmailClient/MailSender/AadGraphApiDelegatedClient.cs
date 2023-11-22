@@ -12,6 +12,9 @@ using System.Security;
 using System;
 using System.Windows.Interop;
 using System.Windows;
+using static System.Formats.Asn1.AsnWriter;
+using Azure.Identity;
+
 
 namespace EmailCalendarsClient.MailSender
 {
@@ -26,6 +29,7 @@ namespace EmailCalendarsClient.MailSender
         private static readonly string Scope = ConfigurationManager.AppSettings["Scope"];
         private static readonly string Username = ConfigurationManager.AppSettings["Username"];
         private static readonly string Password = ConfigurationManager.AppSettings["Password"];
+        private static readonly string ClientSecret = ConfigurationManager.AppSettings["ClientSecret"];
 
         private static readonly string Authority = string.Format(CultureInfo.InvariantCulture, AadInstance, Tenant);
         private static readonly string[] Scopes = { Scope };
@@ -198,5 +202,39 @@ namespace EmailCalendarsClient.MailSender
 
         }
 
+        public async Task GetInboxMessagesWithSecret()
+        {
+            var scopes = new[] { "https://graph.microsoft.com/.default" };
+
+            List<Microsoft.Graph.QueryOption> qOptions = new List<Microsoft.Graph.QueryOption>
+            {
+                    new Microsoft.Graph.QueryOption("$count","true")
+            };
+
+            // using Azure.Identity;
+            var options = new ClientSecretCredentialOptions
+            {
+                AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+            };
+
+            // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
+            var clientSecretCredential = new ClientSecretCredential(
+                Tenant, ClientId, ClientSecret, options);
+
+            var graphClient = new GraphServiceClient(clientSecretCredential, scopes);
+
+            var subjectText = "PSS DCP DICE Certificate Signing";
+            var messages = await graphClient.Users[Username].MailFolders.Inbox.Messages.Request(qOptions).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
+
+            List<Message> allMessages = new List<Message>();
+            allMessages.AddRange(messages.CurrentPage);
+            while (messages.NextPageRequest != null)
+            {
+                messages = await messages.NextPageRequest.GetAsync();
+                allMessages.AddRange(messages.CurrentPage);
+            }
+
+            MessageBox.Show(string.Format("Got {0} messages with subject 'PSS DCP DICE Certificate Signing'", allMessages.Count));
+        }
     }
 }
