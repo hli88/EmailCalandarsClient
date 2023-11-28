@@ -14,7 +14,10 @@ using System.Windows.Interop;
 using System.Windows;
 using static System.Formats.Asn1.AsnWriter;
 using Azure.Identity;
-
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Users.Item.SendMail;
+using Microsoft.Graph.Users.Item.MailFolders.Item.Messages.Item.Move;
+using static System.Windows.Forms.Design.AxImporter;
 
 namespace EmailCalendarsClient.MailSender
 {
@@ -142,29 +145,29 @@ namespace EmailCalendarsClient.MailSender
             }
         }
 
-        public async Task SendEmailAsync(Message message)
-        {
-            var result = await AcquireTokenSilent();
+        //public async Task SendEmailAsync(Message message)
+        //{
+        //    var result = await AcquireTokenSilent();
 
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        //    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+        //    _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var graphClient = new GraphServiceClient(_httpClient)
-            {
-                AuthenticationProvider = new DelegateAuthenticationProvider(async (requestMessage) =>
-                {
-                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
-                    await Task.FromResult<object>(null);
-                })
-            };
+        //    var graphClient = new GraphServiceClient(_httpClient)
+        //    {
+        //        AuthenticationProvider = new DelegateAuthenticationProvider(async (requestMessage) =>
+        //        {
+        //            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+        //            await Task.FromResult<object>(null);
+        //        })
+        //    };
 
-            var saveToSentItems = true;
+        //    var saveToSentItems = true;
 
-            await graphClient.Me
-                .SendMail(message, saveToSentItems)
-                .Request()
-                .PostAsync();
-        }
+        //    await graphClient.Me
+        //        .SendMail(message, saveToSentItems)
+        //        .Request()
+        //        .PostAsync();
+        //}
 
         public async Task SendEmailWithSecretAsync(Message message)
         {
@@ -182,55 +185,62 @@ namespace EmailCalendarsClient.MailSender
 
             var graphClient = new GraphServiceClient(clientSecretCredential, scopes);
 
-            await graphClient.Users[Username]
-                .SendMail(message, true)
-                .Request()
-                .PostAsync();
+            //await graphClient.Users[Username]
+            //    .SendMail(message, true)
+            //    .Request()
+            //    .PostAsync();
+
+            var body = new SendMailPostRequestBody
+            {
+                Message = message,
+            };
+
+            await graphClient.Users[Username].SendMail.PostAsync(body);
 
             MessageBox.Show("Message sent successfully!", "Message", MessageBoxButton.OK);
         }
 
-        public async Task GetInboxMessages()
-        {
-            List<Microsoft.Graph.QueryOption> options = new List<Microsoft.Graph.QueryOption>
-            {
-                    new Microsoft.Graph.QueryOption("$count","true")
-            };
+        //public async Task GetInboxMessages()
+        //{
+        //    List<Microsoft.Graph.QueryOption> options = new List<Microsoft.Graph.QueryOption>
+        //    {
+        //            new Microsoft.Graph.QueryOption("$count","true")
+        //    };
 
-            var result = await AcquireTokenSilent();
+        //    var result = await AcquireTokenSilent();
 
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        //    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+        //    _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var graphClient = new GraphServiceClient(_httpClient)
-            {
-                AuthenticationProvider = new DelegateAuthenticationProvider(async (requestMessage) =>
-                {
-                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
-                    await Task.FromResult<object>(null);
-                })
-            };
+        //    var graphClient = new GraphServiceClient(_httpClient)
+        //    {
+        //        AuthenticationProvider = new DelegateAuthenticationProvider(async (requestMessage) =>
+        //        {
+        //            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+        //            await Task.FromResult<object>(null);
+        //        })
+        //    };
 
-            var subjectText = "PSS DCP DICE Certificate Signing";
-            var messages = await graphClient.Me.MailFolders.Inbox.Messages.Request(options).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
+        //    var subjectText = "PSS DCP DICE Certificate Signing";
+        //    var messages = await graphClient.Me.MailFolders.Inbox.Messages.Request(options).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
 
-            List<Message> allMessages = new List<Message>();
-            allMessages.AddRange(messages.CurrentPage);
-            while (messages.NextPageRequest != null)
-            {
-                messages = await messages.NextPageRequest.GetAsync();
-                allMessages.AddRange(messages.CurrentPage);
-            }
+        //    List<Message> allMessages = new List<Message>();
+        //    allMessages.AddRange(messages.CurrentPage);
+        //    while (messages.NextPageRequest != null)
+        //    {
+        //        messages = await messages.NextPageRequest.GetAsync();
+        //        allMessages.AddRange(messages.CurrentPage);
+        //    }
 
-            MessageBox.Show(string.Format("Got {0} messages with subject 'PSS DCP DICE Certificate Signing'", allMessages.Count));
+        //    MessageBox.Show(string.Format("Got {0} messages with subject 'PSS DCP DICE Certificate Signing'", allMessages.Count));
 
-        }
+        //}
 
 
         static async Task<MailFolder> GetOrCreateMailFolder(GraphServiceClient graphClient, string userEmail, string folderName)
         {
-            var folders = await graphClient.Users[Username].MailFolders.Request().GetAsync();
-            var folder = folders.FirstOrDefault(f => f.DisplayName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
+            var folders = await graphClient.Users[Username].MailFolders.GetAsync();
+            var folder = folders.Value.FirstOrDefault(f => f.DisplayName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
 
             if (folder == null)
             {
@@ -239,7 +249,7 @@ namespace EmailCalendarsClient.MailSender
                     DisplayName = folderName
                 };
 
-                return await graphClient.Users[Username].MailFolders.Request().AddAsync(newFolder);
+                return await graphClient.Users[Username].MailFolders.PostAsync(newFolder);
             }
             else
             {
@@ -251,7 +261,11 @@ namespace EmailCalendarsClient.MailSender
         {
             foreach (var message in messages)
             {
-                await graphClient.Users[Username].MailFolders[targetFolderId].Messages[message.Id].Move(targetFolderId).Request().PostAsync();
+                MovePostRequestBody body = new MovePostRequestBody
+                {
+                    DestinationId = targetFolderId
+                };
+                await graphClient.Users[Username].MailFolders[targetFolderId].Messages[message.Id].Move.PostAsync(body);
             }
         }
 
@@ -259,10 +273,10 @@ namespace EmailCalendarsClient.MailSender
         {
             var scopes = new[] { "https://graph.microsoft.com/.default" };
 
-            List<Microsoft.Graph.QueryOption> qOptions = new List<Microsoft.Graph.QueryOption>
-            {
-                    new Microsoft.Graph.QueryOption("$count","true")
-            };
+            //List<Microsoft.Graph.QueryOption> qOptions = new List<Microsoft.Graph.QueryOption>
+            //{
+            //        new Microsoft.Graph.QueryOption("$count","true")
+            //};
 
             // using Azure.Identity;
             var options = new ClientSecretCredentialOptions
@@ -277,15 +291,25 @@ namespace EmailCalendarsClient.MailSender
             var graphClient = new GraphServiceClient(clientSecretCredential, scopes);
 
             var subjectText = "PSS DCP DICE Certificate Signing";
-            var messages = await graphClient.Users[Username].MailFolders.Inbox.Messages.Request(qOptions).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
-
-            List<Message> allMessages = new List<Message>();
-            allMessages.AddRange(messages.CurrentPage);
-            while (messages.NextPageRequest != null)
+            //var messages = await graphClient.Users[Username].MailFolders.Inbox.Messages.Request(qOptions).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
+            var messages = await graphClient.Users[Username].MailFolders["Inbox"].Messages.GetAsync(requestConfiguration =>
             {
-                messages = await messages.NextPageRequest.GetAsync();
-                allMessages.AddRange(messages.CurrentPage);
-            }
+                requestConfiguration.QueryParameters.Expand = new string[] { "attachments" };
+                requestConfiguration.QueryParameters.Filter = $"hasAttachments eq true and startsWith(subject,'{subjectText}')";
+            });
+
+            List <Message> allMessages = new List<Message>();
+
+            var pageIterator = PageIterator<Message, MessageCollectionResponse>.CreatePageIterator(graphClient, messages, (message) => { allMessages.Add(message); return true; });
+
+            await pageIterator.IterateAsync();
+
+            //allMessages.AddRange(messages.Value.CurrentPage);
+            //while (messages.NextPageRequest != null)
+            //{
+            //    messages = await messages.NextPageRequest.GetAsync();
+            //    allMessages.AddRange(messages.CurrentPage);
+            //}
 
             var targetFolderName = "Test_Processed";
             var targetFolder = await GetOrCreateMailFolder(graphClient, Username, targetFolderName);
