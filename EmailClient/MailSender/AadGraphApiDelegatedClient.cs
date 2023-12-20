@@ -244,7 +244,7 @@ namespace EmailCalendarsClient.MailSender
             var folders = await graphClient.Users[Username].MailFolders.GetAsync(requestConfiguration =>
             {
                 requestConfiguration.QueryParameters.Count = true;
-                requestConfiguration.QueryParameters.Filter = $"displayName eq 'Test_Processed'";
+                requestConfiguration.QueryParameters.Filter = $"displayName eq '{folderName}'";
             });
             var folder = folders.Value.FirstOrDefault(f => f.DisplayName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
 
