@@ -100,7 +100,16 @@ namespace GraphEmailClient
         private async void GetMessages(object sender, RoutedEventArgs e)
         {
             //await _aadGraphApiDelegatedClient.GetInboxMessages();
-            await _aadGraphApiDelegatedClient.GetInboxMessagesWithSecret();
+
+            try
+            {
+                await _aadGraphApiDelegatedClient.GetInboxMessagesWithSecret();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            
         }
 
         private void SetUserName(IAccount userInfo)

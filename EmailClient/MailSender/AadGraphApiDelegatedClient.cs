@@ -18,6 +18,8 @@ using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.SendMail;
 using Microsoft.Graph.Users.Item.MailFolders.Item.Messages.Item.Move;
 using static System.Windows.Forms.Design.AxImporter;
+using Microsoft.Graph.Users.Item.MailFolders.Item.Messages.Item.CreateReply;
+using Microsoft.Graph.Users.Item.Messages.Item.Reply;
 
 namespace EmailCalendarsClient.MailSender
 {
@@ -239,7 +241,11 @@ namespace EmailCalendarsClient.MailSender
 
         static async Task<MailFolder> GetOrCreateMailFolder(GraphServiceClient graphClient, string userEmail, string folderName)
         {
-            var folders = await graphClient.Users[Username].MailFolders.GetAsync();
+            var folders = await graphClient.Users[Username].MailFolders.GetAsync(requestConfiguration =>
+            {
+                requestConfiguration.QueryParameters.Count = true;
+                requestConfiguration.QueryParameters.Filter = $"displayName eq 'Test_Processed'";
+            });
             var folder = folders.Value.FirstOrDefault(f => f.DisplayName.Equals(folderName, StringComparison.OrdinalIgnoreCase));
 
             if (folder == null)
@@ -265,8 +271,34 @@ namespace EmailCalendarsClient.MailSender
                 {
                     DestinationId = targetFolderId
                 };
+                
+                //await UpdateMessageSubject(graphClient, message, "[Test processed @ " + DateTime.Now + "] " + message.Subject);
                 await graphClient.Users[Username].MailFolders[targetFolderId].Messages[message.Id].Move.PostAsync(body);
             }
+        }
+
+        static async Task UpdateMessageSubject(GraphServiceClient graphClient, Message message, string subject)
+        {
+            var requestBody = new ReplyPostRequestBody
+            {
+                Message = new Message
+                {
+                    Subject = subject,
+                    ToRecipients = new List<Recipient>
+                    {
+                        new Recipient
+                        {
+                            EmailAddress = new EmailAddress
+                            {
+                                Address = message.ToRecipients[0].EmailAddress.Address,
+                            },
+                        }
+                    },
+                },
+                Comment = "Test Comment...",
+            };
+
+            await graphClient.Users[Username].Messages[message.Id].Reply.PostAsync(requestBody);
         }
 
         public async Task GetInboxMessagesWithSecret()
@@ -294,6 +326,7 @@ namespace EmailCalendarsClient.MailSender
             //var messages = await graphClient.Users[Username].MailFolders.Inbox.Messages.Request(qOptions).Filter($"hasAttachments eq true and startsWith(subject,'{subjectText}')").Expand("attachments").GetAsync();
             var messages = await graphClient.Users[Username].MailFolders["Inbox"].Messages.GetAsync(requestConfiguration =>
             {
+                requestConfiguration.QueryParameters.Count = true;
                 requestConfiguration.QueryParameters.Expand = new string[] { "attachments" };
                 requestConfiguration.QueryParameters.Filter = $"hasAttachments eq true and startsWith(subject,'{subjectText}')";
             });
