@@ -53,6 +53,11 @@ namespace EmailCalendarsClient.MailSender
             TokenCacheHelper.EnableSerialization(_app.UserTokenCache);
         }
 
+        public string GetUserEmail()
+        {
+            return Username.ToString();
+        }
+
         public async Task<IAccount> SignIn()
         {
             try
@@ -302,6 +307,37 @@ namespace EmailCalendarsClient.MailSender
         }
 
         public async Task GetInboxMessagesWithSecret()
+        {
+            var scopes = new[] { "https://graph.microsoft.com/.default" };
+
+            
+            var options = new ClientSecretCredentialOptions
+            {
+                AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+            };
+
+            // https://learn.microsoft.com/dotnet/api/azure.identity.clientsecretcredential
+            var clientSecretCredential = new ClientSecretCredential(
+                Tenant, ClientId, ClientSecret, options);
+
+            var graphClient = new GraphServiceClient(clientSecretCredential, scopes);
+
+            var messages = await graphClient.Users[Username].MailFolders["Inbox"].Messages.GetAsync(requestConfiguration =>
+            {
+                requestConfiguration.QueryParameters.Count = true;
+                requestConfiguration.QueryParameters.Expand = new string[] { "attachments" };
+            });
+
+            List<Message> allMessages = new List<Message>();
+
+            var pageIterator = PageIterator<Message, MessageCollectionResponse>.CreatePageIterator(graphClient, messages, (message) => { allMessages.Add(message); return true; });
+
+            await pageIterator.IterateAsync();
+
+            MessageBox.Show(string.Format("Access mail box ({0}) successfully! Got {1} messages from Inbox.", Username, allMessages.Count), "Success!", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        public async Task GetMoveInboxMessagesWithSecret()
         {
             var scopes = new[] { "https://graph.microsoft.com/.default" };
 

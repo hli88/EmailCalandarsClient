@@ -19,6 +19,7 @@ namespace GraphEmailClient
         {
             InitializeComponent();
             _aadGraphApiDelegatedClient.InitClient();
+            UserEmailText.Text = _aadGraphApiDelegatedClient.GetUserEmail();
         }
 
         private async void SignIn(object sender = null, RoutedEventArgs args = null)
@@ -103,11 +104,19 @@ namespace GraphEmailClient
 
             try
             {
+                GetMsgButton.IsEnabled = false;
+                GetMsgButton.Content = "Pulling messages...";
                 await _aadGraphApiDelegatedClient.GetInboxMessagesWithSecret();
+                
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                GetMsgButton.Content = "Get Messages";
+                GetMsgButton.IsEnabled = true;
             }
             
         }
